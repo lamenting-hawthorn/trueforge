@@ -13,6 +13,7 @@ import {
   McpAuthStatusSchema,
   PutMcpServerRequestSchema,
 } from '../schemas/mcpServer';
+import { McpToolSchema } from '../schemas/mcpTool';
 
 const MCP_SERVERS_TAG = 'MCP Servers';
 
@@ -160,10 +161,7 @@ export const putMcpServerRoute = createRoute({
 
 const ListMcpServerToolsResponseSchema = z
   .object({
-    // TODO: Type tools/list entries to the MCP tool shape (name, description, inputSchema, …) for OpenAPI quality.
-    data: z
-      .array(z.record(z.string(), z.unknown()))
-      .describe('MCP `tools/list` entries, passed through verbatim from the MCP server.'),
+    data: z.array(McpToolSchema).describe('MCP `tools/list` entries, typed to the MCP Tool shape.'),
   })
   .openapi('ListMcpServerToolsResponse');
 

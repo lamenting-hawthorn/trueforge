@@ -399,7 +399,20 @@ describe("McpServersClient", () => {
         const server = mockServerPool.createServer();
         const client = new TrueForge({ maxRetries: 0, token: "test", baseUrl: server.baseUrl });
 
-        const rawResponseBody = { data: [{ key: "value" }] };
+        const rawResponseBody = {
+            data: [
+                {
+                    _meta: { key: "value" },
+                    description: "description",
+                    icons: [{ src: "src" }],
+                    inputSchema: { type: "object" },
+                    name: "name",
+                    outputSchema: { type: "object" },
+                    preload: true,
+                    title: "title",
+                },
+            ],
+        };
 
         server
             .mockEndpoint()
@@ -413,7 +426,24 @@ describe("McpServersClient", () => {
         expect(response).toEqual({
             data: [
                 {
-                    key: "value",
+                    meta: {
+                        key: "value",
+                    },
+                    description: "description",
+                    icons: [
+                        {
+                            src: "src",
+                        },
+                    ],
+                    inputSchema: {
+                        type: "object",
+                    },
+                    name: "name",
+                    outputSchema: {
+                        type: "object",
+                    },
+                    preload: true,
+                    title: "title",
                 },
             ],
         });

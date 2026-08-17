@@ -1281,10 +1281,9 @@
       "ListMcpServerToolsResponse": {
         "properties": {
           "data": {
-            "description": "MCP `tools/list` entries, passed through verbatim from the MCP server.",
+            "description": "MCP `tools/list` entries, typed to the MCP Tool shape.",
             "items": {
-              "additionalProperties": {},
-              "type": "object"
+              "$ref": "#/components/schemas/McpTool"
             },
             "type": "array"
           }
@@ -1872,6 +1871,151 @@
           "remote"
         ],
         "type": "string"
+      },
+      "McpTool": {
+        "additionalProperties": {},
+        "description": "A single MCP `tools/list` entry.",
+        "properties": {
+          "_meta": {
+            "additionalProperties": {},
+            "description": "MCP-designated metadata, passed through verbatim.",
+            "type": "object"
+          },
+          "annotations": {
+            "$ref": "#/components/schemas/McpToolAnnotations"
+          },
+          "description": {
+            "description": "Human-readable description of what the tool does.",
+            "type": "string"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/McpToolExecution"
+          },
+          "icons": {
+            "description": "Sized icons for the tool.",
+            "items": {
+              "$ref": "#/components/schemas/McpToolIcon"
+            },
+            "type": "array"
+          },
+          "inputSchema": {
+            "$ref": "#/components/schemas/McpToolJsonSchema"
+          },
+          "name": {
+            "description": "Programmatic identifier of the tool.",
+            "type": "string"
+          },
+          "outputSchema": {
+            "$ref": "#/components/schemas/McpToolJsonSchema"
+          },
+          "preload": {
+            "description": "TrueForge hint: eagerly load this tool for the model.",
+            "type": "boolean"
+          },
+          "title": {
+            "description": "Human-readable display title.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "inputSchema"
+        ],
+        "type": "object"
+      },
+      "McpToolAnnotations": {
+        "additionalProperties": {},
+        "description": "Optional behavior hints.",
+        "properties": {
+          "destructiveHint": {
+            "description": "If true, the tool may perform destructive updates.",
+            "type": "boolean"
+          },
+          "idempotentHint": {
+            "description": "If true, repeating identical calls has no additional effect.",
+            "type": "boolean"
+          },
+          "openWorldHint": {
+            "description": "If true, the tool may interact with an open world of external entities.",
+            "type": "boolean"
+          },
+          "readOnlyHint": {
+            "description": "If true, the tool does not modify its environment.",
+            "type": "boolean"
+          },
+          "title": {
+            "description": "Human-readable title for the tool.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "McpToolExecution": {
+        "additionalProperties": {},
+        "description": "Execution-related properties.",
+        "properties": {
+          "taskSupport": {
+            "description": "Whether the tool supports task-augmented (long-running) execution.",
+            "enum": [
+              "forbidden",
+              "optional",
+              "required"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "McpToolIcon": {
+        "additionalProperties": {},
+        "description": "A sized icon for a tool.",
+        "properties": {
+          "mimeType": {
+            "description": "MIME type override, e.g. \"image/png\".",
+            "type": "string"
+          },
+          "src": {
+            "description": "URI of the icon resource (HTTP(S) or data: URI).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "src"
+        ],
+        "type": "object"
+      },
+      "McpToolJsonSchema": {
+        "additionalProperties": {},
+        "description": "A JSON Schema object constraining a tool parameter or result.",
+        "properties": {
+          "$schema": {
+            "description": "JSON Schema dialect identifier, e.g. \"https://json-schema.org/draft/2020-12/schema\".",
+            "type": "string"
+          },
+          "properties": {
+            "additionalProperties": {},
+            "description": "Named property schemas.",
+            "type": "object"
+          },
+          "required": {
+            "description": "Property names that must be present.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": {
+            "description": "MCP tool schemas are objects at the root.",
+            "enum": [
+              "object"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "MeResponse": {
         "properties": {
