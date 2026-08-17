@@ -28,6 +28,7 @@ import type {
   PutMcpServerRequest,
 } from '../schemas/mcpServer';
 import { resolveMcpAuthStatus } from '../schemas/mcpServer';
+import { McpToolSchema } from '../schemas/mcpTool';
 import { MissingStoredSecretError, resolveStoredSecretValue, toRedactedSecretValue } from '../utils/secretRedaction';
 import { TENANT_ID } from './sessions';
 
@@ -332,7 +333,7 @@ export function createSettingsMcpServersRouter<TTransaction>(deps: McpServersRou
       if (isAuthRequired(response)) {
         return c.json({ error: { message: `MCP server "${name}" requires authentication` } }, 422);
       }
-      const data = response.result.tools.map(tool => omitUndefinedEntries({ ...tool }));
+      const data = response.result.tools.map(tool => McpToolSchema.parse(omitUndefinedEntries({ ...tool })));
       return c.json({ data }, 200);
     } catch (error) {
       if (error instanceof McpConnectionError) {

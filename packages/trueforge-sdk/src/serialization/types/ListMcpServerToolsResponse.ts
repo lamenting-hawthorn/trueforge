@@ -3,16 +3,17 @@
 import type * as TrueForge from "../../api/index.js";
 import * as core from "../../core/index.js";
 import type * as serializers from "../index.js";
+import { McpTool } from "./McpTool.js";
 
 export const ListMcpServerToolsResponse: core.serialization.ObjectSchema<
     serializers.ListMcpServerToolsResponse.Raw,
     TrueForge.ListMcpServerToolsResponse
 > = core.serialization.object({
-    data: core.serialization.list(core.serialization.record(core.serialization.string(), core.serialization.unknown())),
+    data: core.serialization.list(McpTool),
 });
 
 export declare namespace ListMcpServerToolsResponse {
     export interface Raw {
-        data: Record<string, unknown>[];
+        data: McpTool.Raw[];
     }
 }
