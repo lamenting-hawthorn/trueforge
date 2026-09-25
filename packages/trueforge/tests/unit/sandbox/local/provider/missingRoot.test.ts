@@ -17,6 +17,24 @@ async function makeProvider(sandboxRootPathParent: string): Promise<LocalSandbox
 }
 
 describe('LocalSandboxProvider missing root', () => {
+  it('rejects an already aborted download before starting a sandbox command', async () => {
+    const sandboxRootPathParent = await mkdtemp(join(tmpdir(), 'tfy-local-aborted-'));
+    const provider = await makeProvider(sandboxRootPathParent);
+    const controller = new AbortController();
+    controller.abort();
+    try {
+      await expect(
+        provider.downloadFile({
+          sandboxId: join(sandboxRootPathParent, 'does-not-exist'),
+          path: 'report.txt',
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow('aborted by the client');
+    } finally {
+      await rm(sandboxRootPathParent, { recursive: true, force: true });
+    }
+  });
+
   it('throws SandboxNotAvailableError when the sandbox root does not exist', async () => {
     const sandboxRootPathParent = await mkdtemp(join(tmpdir(), 'tfy-local-missing-'));
     const provider = await makeProvider(sandboxRootPathParent);

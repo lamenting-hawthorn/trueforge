@@ -54,6 +54,40 @@ describe('boundedFileStream', () => {
     expect((error as SandboxFileTooLargeError).fileSize).toBe(120);
   });
 
+  it('withholds bytes beyond the advertised size when a file grows below the cap', async () => {
+    let cleanedUp = false;
+    const stream = boundedFileStream({
+      path: 'growing.bin',
+      maxBytes: 100,
+      expectedBytes: 5,
+      chunks: sourceOf([Buffer.from('hello'), Buffer.from('!')], {
+        onFinally: () => (cleanedUp = true),
+      }),
+    });
+
+    const { parts, error } = await drain(stream);
+
+    expect(parts.map(part => Buffer.from(part).toString())).toEqual(['hello']);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('changed during download');
+    expect(cleanedUp).toBe(true);
+  });
+
+  it('errors if the file becomes shorter than the advertised size', async () => {
+    const stream = boundedFileStream({
+      path: 'shrinking.bin',
+      maxBytes: 100,
+      expectedBytes: 6,
+      chunks: sourceOf([Buffer.from('hello')]),
+    });
+
+    const { parts, error } = await drain(stream);
+
+    expect(parts.map(part => Buffer.from(part).toString())).toEqual(['hello']);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('changed during download');
+  });
+
   it('propagates source failures as stream errors', async () => {
     const stream = boundedFileStream({
       path: 'f.bin',

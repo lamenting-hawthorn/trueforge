@@ -677,6 +677,10 @@ export class LocalSandboxProvider implements SandboxProvider {
     path: string;
     signal?: AbortSignal | undefined;
   }): Promise<SandboxFileDownload> {
+    const isAborted = (): boolean => params.signal?.aborted === true;
+    if (isAborted()) {
+      throw new Error(`Download of ${params.path} aborted by the client`);
+    }
     this.ensureSandboxRoot(params.sandboxId);
     await this.ensureSrt();
     await this.ensureVenv(params.sandboxId);
@@ -700,6 +704,10 @@ export class LocalSandboxProvider implements SandboxProvider {
       platform: this.support.platform,
       timeoutMs: this.defaultExecTimeoutSeconds * 1000,
     });
+    if (isAborted()) {
+      supervised.abort();
+      throw new Error(`Download of ${params.path} aborted by the client`);
+    }
     if (params.signal !== undefined) {
       params.signal.addEventListener(
         'abort',
@@ -731,6 +739,7 @@ export class LocalSandboxProvider implements SandboxProvider {
       stream: boundedFileStream({
         path: params.path,
         maxBytes: this.fileMaxBytesForDownload,
+        expectedBytes: info.size,
         chunks,
       }),
     };

@@ -428,6 +428,9 @@ export class DaytonaSandboxProvider implements SandboxProvider {
     path: string;
     signal?: AbortSignal | undefined;
   }): Promise<SandboxFileDownload> {
+    if (params.signal?.aborted === true) {
+      throw new Error(`Download of ${params.path} aborted by the client`);
+    }
     return context.with(suppressTracing(context.active()), async () => {
       try {
         // Stat + stream-open happen here so domain errors (404 / dir / too large) reject the
@@ -444,11 +447,15 @@ export class DaytonaSandboxProvider implements SandboxProvider {
           }
 
           const nodeStream = await sandbox.fs.downloadFileStream(params.path);
+          if (params.signal?.aborted === true) {
+            nodeStream.destroy();
+            throw new Error(`Download of ${params.path} aborted by the client`);
+          }
           if (params.signal !== undefined) {
             params.signal.addEventListener(
               'abort',
               () => {
-                nodeStream.destroy(new Error(`Download of ${params.path} aborted by the client`));
+                nodeStream.destroy();
               },
               { once: true },
             );
@@ -458,6 +465,7 @@ export class DaytonaSandboxProvider implements SandboxProvider {
             stream: boundedFileStream({
               path: params.path,
               maxBytes: this.fileMaxBytesForDownload,
+              expectedBytes: info.size,
               chunks: async function* () {
                 try {
                   for await (const chunk of nodeStream) {

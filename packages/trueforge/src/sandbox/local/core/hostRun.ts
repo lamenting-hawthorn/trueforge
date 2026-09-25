@@ -679,8 +679,10 @@ export async function startSupervisorStdoutStream(params: {
 
   let stderrText = '';
   let protocolError: string | undefined;
+  let streamError: Error | undefined;
   let timedOut = false;
   let done = false;
+  let cleanedUp = false;
   const pending: Buffer[] = [];
   let wake: (() => void) | undefined;
 
@@ -696,6 +698,15 @@ export async function startSupervisorStdoutStream(params: {
     w?.();
   };
 
+  const cleanup = (): void => {
+    if (cleanedUp) {
+      return;
+    }
+    cleanedUp = true;
+    clearTimeout(timer);
+    SandboxManager.cleanupAfterCommand();
+  };
+
   ignoreStreamError(child.stderr);
   child.stderr?.on('data', (chunk: Buffer) => {
     if (stderrText.length >= MAX_OUTPUT_BYTES) {
@@ -705,9 +716,18 @@ export async function startSupervisorStdoutStream(params: {
     }
     stderrText += chunk.toString('utf8');
   });
-  child.on('error', () => undefined);
+  child.on('error', (error: Error) => {
+    streamError = error;
+    killExecTree(child);
+  });
+  child.stdout?.on('error', (error: Error) => {
+    streamError = error;
+    killExecTree(child);
+  });
   child.stdout?.on('data', (chunk: Buffer) => {
     pending.push(chunk);
+    // Keep at most one chunk in our queue while the consumer processes the last one.
+    child.stdout?.pause();
     const w = wake;
     wake = undefined;
     w?.();
@@ -716,6 +736,7 @@ export async function startSupervisorStdoutStream(params: {
   const exitCodePromise = new Promise<number>(resolve => {
     child.on('close', code => {
       finish();
+      cleanup();
       resolve(typeof code === 'number' ? code : timedOut ? 1 : 0);
     });
   });
@@ -727,6 +748,7 @@ export async function startSupervisorStdoutStream(params: {
         const chunk = pending.shift();
         if (chunk !== undefined) {
           yield chunk;
+          child.stdout?.resume();
           continue;
         }
         await new Promise<void>(resolveWake => {
@@ -734,8 +756,8 @@ export async function startSupervisorStdoutStream(params: {
         });
       }
       const exitCode = await exitCodePromise;
-      if (protocolError !== undefined || exitCode !== 0) {
-        const detail = [protocolError, stderrText.trim()]
+      if (protocolError !== undefined || streamError !== undefined || exitCode !== 0) {
+        const detail = [protocolError, streamError?.message, stderrText.trim()]
           .filter(part => part !== undefined && part.length > 0)
           .join(' ');
         throw new SupervisorStreamError(
@@ -745,10 +767,9 @@ export async function startSupervisorStdoutStream(params: {
       }
     } finally {
       done = true;
-      clearTimeout(timer);
       // Early consumer return lands here too; a completed process is an ESRCH no-op.
       killExecTree(child);
-      SandboxManager.cleanupAfterCommand();
+      cleanup();
     }
   }
 

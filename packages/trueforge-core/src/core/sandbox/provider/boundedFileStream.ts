@@ -5,6 +5,8 @@ export interface BoundedFileStreamParams {
   path: string;
   /** Hard byte ceiling; also enforced here because the pre-download stat can go stale. */
   maxBytes: number;
+  /** Stat size advertised as Content-Length; the body must match it exactly. */
+  expectedBytes?: number;
   /**
    * Provider-specific incremental source, created fresh per call so the generator's own
    * `finally` cleanup runs on completion, source errors, and consumer cancellation alike.
@@ -30,7 +32,11 @@ export function boundedFileStream(params: BoundedFileStreamParams): ReadableStre
         return;
       }
       if (next.done) {
-        controller.close();
+        if (params.expectedBytes !== undefined && streamed !== params.expectedBytes) {
+          controller.error(new Error(`Sandbox file changed during download: ${params.path}`));
+        } else {
+          controller.close();
+        }
         return;
       }
       streamed += next.value.byteLength;
@@ -38,6 +44,11 @@ export function boundedFileStream(params: BoundedFileStreamParams): ReadableStre
         // Held back rather than enqueued: the client never sees past-the-cap bytes.
         await iterator.return(undefined);
         controller.error(new SandboxFileTooLargeError(params.path, streamed, params.maxBytes));
+        return;
+      }
+      if (params.expectedBytes !== undefined && streamed > params.expectedBytes) {
+        await iterator.return(undefined);
+        controller.error(new Error(`Sandbox file changed during download: ${params.path}`));
         return;
       }
       controller.enqueue(next.value);

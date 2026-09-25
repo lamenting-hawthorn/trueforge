@@ -67,6 +67,16 @@ async function drain(download: Awaited<ReturnType<DaytonaSandboxProvider['downlo
 }
 
 describe('DaytonaSandboxProvider downloadFile streaming', () => {
+  it('rejects an already aborted download before opening a stream', async () => {
+    const provider = makeProviderWithFs({ details: { size: 1, isDir: false } });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      provider.downloadFile({ sandboxId: SANDBOX_ID, path: 'report.txt', signal: controller.signal }),
+    ).rejects.toThrow('aborted by the client');
+  });
+
   it('streams the file incrementally and reports the stat size', async () => {
     const provider = makeProviderWithFs({
       details: { size: 11, isDir: false },
@@ -100,13 +110,23 @@ describe('DaytonaSandboxProvider downloadFile streaming', () => {
   });
 
   it('enforces the cap again while streaming in case the file grew after stat', async () => {
-    // Stat lies small; the actual stream exceeds fileMaxBytesForDownload (1024).
+    // Stat is at the cap; the actual stream exceeds fileMaxBytesForDownload (1024).
     const provider = makeProviderWithFs({
-      details: { size: 8, isDir: false },
+      details: { size: 1024, isDir: false },
       stream: Readable.from([Buffer.alloc(700, 1), Buffer.alloc(700, 2)]),
     });
 
     const download = await provider.downloadFile({ sandboxId: SANDBOX_ID, path: 'grew.bin' });
     await expect(drain(download)).rejects.toBeInstanceOf(SandboxFileTooLargeError);
+  });
+
+  it('rejects a stream that grows beyond the stat size but stays below the cap', async () => {
+    const provider = makeProviderWithFs({
+      details: { size: 5, isDir: false },
+      stream: Readable.from([Buffer.from('hello'), Buffer.from('!')]),
+    });
+
+    const download = await provider.downloadFile({ sandboxId: SANDBOX_ID, path: 'grew.bin' });
+    await expect(drain(download)).rejects.toThrow('changed during download');
   });
 });

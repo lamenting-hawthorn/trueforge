@@ -271,6 +271,7 @@ export class TFYSandboxProvider implements SandboxProvider {
       stream: boundedFileStream({
         path,
         maxBytes: this.fileMaxBytesForDownload,
+        expectedBytes: info.size,
         chunks,
       }),
     };
